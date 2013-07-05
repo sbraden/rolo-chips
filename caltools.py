@@ -148,8 +148,8 @@ def read_angles(root):
     # Slicing columns explicitly:
     angles.iloc[:, 0:11][angles.iloc[:, 0:11] > 90] = 'NaN' # set inc >90 to NaN
     # set phase to NaN outside of -80 to 80
-    angles.iloc[:, 22:][angles.iloc[:, 22:] > 80] = 'NaN'
-    angles.iloc[:, 22:][angles.iloc[:, 22:] < -80] = 'NaN'
+    angles.iloc[:, 21:][angles.iloc[:, 21:] > 80] = 'NaN'
+    angles.iloc[:, 21:][angles.iloc[:, 21:] < -80] = 'NaN'
     
     return angles
 

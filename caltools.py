@@ -71,7 +71,8 @@ def read_rolo_chips(root):
         header   = None,
         names    = columns
     )
-
+    chips[chips == -7.7700000E+02] = 'NaN'
+    
     return chips
 
 
@@ -112,11 +113,9 @@ def read_phase(root):
 
 def read_angles(root):
     '''
-    'angles_new_3.dat' contains incidnece, emission, and phase 
-    in units of radians for the 11 ROLO chips
-
-    Some of the angles are greater than 360 degrees, but modulo 360.0 gives 
-    reasonable values.
+    'angles_new_3.dat' contains incidnece, emission, and phase in units of radians
+    for the 11 ROLO chips. Some of the angles are greater than 360 degrees, but
+    modulo 360.0 gives reasonable values.
     '''
 
     emission_col = ['serenitatis_emission', 'east_emission', 'north_emission',
@@ -144,7 +143,14 @@ def read_angles(root):
         names    = columns
         )
     angles = angles*(180/pi) # change radians to degrees
-    angles = np.fmod(angles, 360) # TODO: I don't think this is working
+    angles = np.fmod(angles, 360)
+    # When slicing, the start bounds is included, while the upper bound is excluded
+    # Slicing columns explicitly:
+    angles.iloc[:, 0:11][angles.iloc[:, 0:11] > 90] = 'NaN' # set inc >90 to NaN
+    # set phase to NaN outside of -80 to 80
+    angles.iloc[:, 22:][angles.iloc[:, 22:] > 80] = 'NaN'
+    angles.iloc[:, 22:][angles.iloc[:, 22:] < -80] = 'NaN'
+    
     return angles
 
 

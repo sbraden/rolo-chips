@@ -22,6 +22,23 @@ this is true for the images, but are the chips also flawed?
 16,347 # bad seeing
 '''
 
+'''
+waxing vs. waning
+
+'serenitatis', waxing
+'east', waxing
+'north', both
+'south', waning or both
+'west', waning
+'aristarchus3', waning
+'aristarchus7', waning
+'copernicus', waning
+'tycho', both
+'highlands', waxing
+'tychoray' both
+'''
+
+
 def read_rolo_chips(root):
     '''
     Input: a path containing the file.
@@ -48,7 +65,7 @@ def read_rolo_chips(root):
                 'subearth_lat', 
                 'subearth_lon', 
                 'subsolar_lat',
-                'sub_solar_lon',
+                'subsolar_lon',
                 'calibration',
                 'extinction',
                 'serenitatis',
@@ -71,7 +88,7 @@ def read_rolo_chips(root):
         header   = None,
         names    = columns
     )
-    chips[chips == -7.7700000E+02] = 'NaN'
+    chips[chips == -7.7700000E+02] = np.nan
     
     return chips
 
@@ -107,6 +124,10 @@ def read_phase(root):
         names    = ('JULIAN_DATE', 'FILTER_ID', 'PHASE', 'SOLAR_DISTANCE'), 
         skiprows = 0
         )
+
+    # set phase to nan outside of -80 to 80
+    phase.PHASE[(phase.PHASE>80)] = np.nan
+    phase.PHASE[(phase.PHASE<-80)] = np.nan
 
     return phase
 
@@ -146,10 +167,10 @@ def read_angles(root):
     angles = np.fmod(angles, 360)
     # When slicing, the start bounds is included, while the upper bound is excluded
     # Slicing columns explicitly:
-    angles.iloc[:, 0:11][angles.iloc[:, 0:11] > 90] = 'NaN' # set inc >90 to NaN
-    # set phase to NaN outside of -80 to 80
-    angles.iloc[:, 21:][angles.iloc[:, 21:] > 80] = 'NaN'
-    angles.iloc[:, 21:][angles.iloc[:, 21:] < -80] = 'NaN'
+    angles.iloc[:, 0:11][(angles.iloc[:, 0:11]>90)] = np.nan # set inc >90 to nan
+    # set phase to nan outside of -80 to 80
+    angles.iloc[:, 21:][(angles.iloc[:, 21:]>80)] = np.nan
+    angles.iloc[:, 21:][(angles.iloc[:, 21:]<-80)] = np.nan
     
     return angles
 
@@ -236,6 +257,28 @@ def lommel_seeliger(incidence, emission):
     LS = cos_incidence / (cos_emission + cos_incidence)
     return LS
 
+
+def process_rolo_data(root, feature, lookup):
+    '''
+    Reads in 3 datafile and returns data in a pandas dataframe.
+    '''
+
+    # STEP 1: Read in rolo data
+    chips = read_rolo_chips(root)
+    angles = read_angles(root)
+    chips = chips.join(angles) # put chips and angles in the same df
+    topo_phase = read_phase(root)
+    # add column from one df to another (with the same index)
+    chips['topo_phase'] = pd.Series(topo_phase.PHASE.values)
+
+    # STEP 2: Convert single chip from units of DN/sec to exoatmospheric radiance 
+    # (W/m^2 sr nm) by: CHIP * CALIBRATION * EXTINCTION
+    chips[feature] = chips['calibration']*chips['extinction']*chips[feature]
+
+    # STEP 2: convert chip radiance to reflectance (I/F)
+    chips_iof = get_chip_reflectance(root, chips, lookup, feature)
+
+    return chips_iof
 
 '''
 Cool trick:
